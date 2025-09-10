@@ -1,4 +1,3 @@
-# maximo_api
 # Maximo Parameter-Driven API
 
 This project is a FastAPI-based service that dynamically generates SQL queries for Maximo reports based on user-supplied parameters.
