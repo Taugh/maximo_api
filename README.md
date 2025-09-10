@@ -12,3 +12,7 @@ This project is a FastAPI-based service that dynamically generates SQL queries f
 ## Setup Instructions
 ...
 
+=======
+# Maximo API Project
+This project interfaces with Maximo using FastAPI.
+>>>>>>> Initial commit with README, .gitignore, and flowchart
