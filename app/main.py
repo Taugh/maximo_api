@@ -1,26 +1,21 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional, List
+from app.db.connection import get_db_connection
+from app.models.work_order_input import WorkOrderInput
+from app.services.query_builder import build_query
 
-# Define the Pydantic model
-class WorkOrderInput(BaseModel):
-    work_order_num: Optional[List[str]] = None
-    status: Optional[str] = None
-    site_id: List[str]
-    istask: int
-    woclass: str
-
-# Create FastAPI app
-app = FastAPI()
+app = FastAPI(title="Maximo API")
 
 @app.get("/")
 def read_root():
     return {"message": "Maximo API is running"}
 
-@app.post("/workorder")
-def create_workorder(input_data: WorkOrderInput):
-    return {
-        "message": "Work order input received",
-        "data": input_data.model_dump()
-    }
+@app.post("/workorders")
+def get_work_orders(input: WorkOrderInput):
+    conn = get_db_connection()
+    query = build_query(input)
+    cursor = conn.cursor()
+    cursor.execute(query)
+    results = cursor.fetchall()
+    conn.close()
+    return {"data": results}
 
