@@ -11,12 +11,10 @@ SQL_SERVER = os.getenv("SQL_SERVER")
 SQL_DATABASE = os.getenv("SQL_DATABASE")
 SQL_DRIVER = os.getenv("SQL_DRIVER", "ODBC Driver 17 for SQL Server")
 
-# LDAP credentials
-LDAP_USERNAME = os.getenv("LDAP_USERNAME")
-LDAP_PASSWORD = os.getenv("LDAP_PASSWORD")
+
 
 # Optional: Validate required variables
-required_vars = [SQL_SERVER, SQL_DATABASE, LDAP_USERNAME, LDAP_PASSWORD]
+required_vars = [SQL_SERVER, SQL_DATABASE]
 if not all(required_vars):
     raise EnvironmentError("Missing one or more required database environment variables.")
 

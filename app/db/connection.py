@@ -1,32 +1,57 @@
 # connection.py
 
 import pyodbc
-from config import SQL_SERVER, SQL_DATABASE, SQL_DRIVER, LDAP_USERNAME, LDAP_PASSWORD
+from app.config import SQL_SERVER, SQL_DATABASE, SQL_DRIVER
+from typing import Optional
 
 class SQLServerConnection:
     def __init__(self):
-        self.server = SQL_SERVER
-        self.database = SQL_DATABASE
-        self.driver = SQL_DRIVER
-        self.username = LDAP_USERNAME
-        self.password = LDAP_PASSWORD
-
-    def get_connection(self):
-        connection_string = (
-            f"DRIVER={{{self.driver}}};"
-            f"SERVER={self.server};"
-            f"DATABASE={self.database};"
-            f"UID={self.username};"
-            f"PWD={self.password};"
-            "Authentication=ActiveDirectoryPassword;"
+        self.connection_string = (
+            f"DRIVER={{{SQL_DRIVER}}};"
+            f"SERVER={SQL_SERVER};"
+            f"DATABASE={SQL_DATABASE};"
+            "Trusted_Connection=yes;"
+            "TrustServerCertificate=yes;"
         )
+        self.conn = None
+        self.cursor = None
+
+    def __enter__(self):
         try:
-            return pyodbc.connect(connection_string)
+            self.conn = pyodbc.connect(self.connection_string)
+            self.cursor = self.conn.cursor()
+            return self
         except pyodbc.Error as e:
             raise ConnectionError(f"Database connection failed: {e}")
 
-    def get_cursor(self):
-        conn = self.get_connection()
-        return conn.cursor()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.cursor:
+            self.cursor.close()
+        if self.conn:
+            self.conn.close()
+
+    @property
+    def raw_cursor(self):
+        if self.cursor is None:
+            raise RuntimeError("Cursor is not initialized.")
+        return self.cursor
+
+    def execute_query(self, query: str, params: Optional[tuple] = None):
+        """
+        Executes a SQL query. Supports parameterized queries.
+        Returns all fetched rows.
+        """
+        if self.cursor is None:
+            raise RuntimeError("Database cursor is not initialized. Use the context manager (with statement).")
+        try:
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+            return self.cursor.fetchall()
+        except pyodbc.Error as e:
+            raise RuntimeError(f"Query execution failed: {e}")
+
+
 
 
