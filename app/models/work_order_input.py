@@ -25,14 +25,21 @@ class WOStatus(str, Enum):
 
 # Enum for allowable work order types
 class WOWorkType(str, Enum):
+    CA = 'CA'
+    CAL = 'CAL'
     CM = 'CM'
+    CO = 'CO'
+    DOCRV = 'DOCRV'
+    ECO = 'ECO'
+    NMC = 'NMC'
     PM = 'PM'
-    EM = 'EM'
-    CAP = 'CAP'
-    ENV = 'ENV'
-    SAF = 'SAF'
-    OTH = 'OTH'
-
+    RM = 'RM'
+    RQL = 'RQL'
+    SAMPM = 'SAMPM'
+    SMD = 'SMD'
+    VAL = 'VAL'
+    
+    
 # Enum for allowable owner groups
 class AssignedOwnerGroup(str, Enum):
     FWNAE = 'FWNAE'
@@ -93,11 +100,32 @@ class AssignedOwnerGroup(str, Enum):
     FWNVAL = 'FWNVAL'
     FWNWSM = 'FWNWSM'
 
+
 class WorkOrderInput(BaseModel):
     work_order_num: Optional[List[str]] = None
     status: Optional[WOStatus] = None
-    worktype: Optional[WOWorkType] = None
+    statusdate: Optional[str] = None
+    work_order_type: Optional[WOWorkType] = None
+    description: Optional[str] = None
+    asset_number: Optional[List[str]] = None
+    location: Optional[List[str]] = None
+    job_plan_num: Optional[List[str]] = None
+    changeby: Optional[str] = None
+    changedate: Optional[str] = None
+    actlabhrs: Optional[float] = None
+    target_complete_date: Optional[str] = None
+    targstartdate: Optional[str] = None
+    reported_by: Optional[str] = None
+    report_date: Optional[str] = None
+    actstart: Optional[str] = None
+    actfinish: Optional[str] = None
+    orgid: Optional[str] = None
+    site_id: Optional[List[str]] = None
+    istask: Optional[int] = None
+    woclass: Optional[str] = None
+    owner: Optional[List[str]] = None
+    owner_group: Optional[List[str]] = None
+    start_no_earlier: Optional[str] = None
+    finish_no_later: Optional[str] = None
     assignedownergroup: Optional[AssignedOwnerGroup] = None
-    site_id: List[str]
-    istask: int
-    woclass: str
+    worktype: Optional[WOWorkType] = None

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Maximo Work Order Report Field Selection</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        .required { font-weight: bold; color: #d32f2f; }
+        .group { margin-bottom: 1.5em; }
+        .group-title { font-size: 1.1em; font-weight: bold; margin-bottom: 0.5em; }
+        .fields { display: flex; flex-wrap: wrap; gap: 1em; }
+        .field { min-width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Work Order Report Field Selection</h1>
+    <form id="fieldForm">
+        <div class="group">
+            <div class="group-title">Required Fields</div>
+            <div class="fields" id="requiredFields"></div>
+        </div>
+        <div class="group">
+            <div class="group-title">Optional Fields</div>
+            <div class="fields" id="optionalFields"></div>
+        </div>
+        <div class="group">
+            <div class="group-title">Multi-Entry Fields</div>
+            <div class="fields" id="multiEntryFields"></div>
+        </div>
+        <div class="group" id="filterGroup" style="display:none;">
+            <div class="group-title">Filter Values for Selected Fields</div>
+            <div id="filterForm"></div>
+            <div id="filterSummary" style="margin-top:1em;"></div>
+        </div>
+    <button type="submit">Generate Report</button>
+    <button type="button" id="downloadBtn" disabled>Download Excel</button>
+    </form>
+    <div id="reportResult" style="margin-top:2em;"></div>
+    <script>
+        // WORK_ORDER_FIELDS from backend (static copy for frontend)
+        const WORK_ORDER_FIELDS = [
+            {"parameter_name": "work_order_num", "field_name": "wonum", "description": "Work Order Number", "required": false, "optional": false, "multi_entry": true},
+            {"parameter_name": "status", "field_name": "status", "description": "Work Order Status", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "statusdate", "field_name": "statusdate", "description": "Date of Status Change", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "work_order_type", "field_name": "worktype", "description": "WO Type", "required": false, "optional": true, "multi_entry": true},
+            {"parameter_name": "description", "field_name": "description", "description": "WO Description", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "asset_number", "field_name": "assetnum", "description": "Asset Number", "required": false, "optional": true, "multi_entry": true},
+            {"parameter_name": "location", "field_name": "location", "description": "Location of Tasks", "required": false, "optional": true, "multi_entry": true},
+            {"parameter_name": "job_plan_num", "field_name": "jpnum", "description": "Job Plan", "required": false, "optional": true, "multi_entry": true},
+            {"parameter_name": "changeby", "field_name": "changeby", "description": "Status/Ownership Changed By", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "changedate", "field_name": "changedate", "description": "Datetime Status/Ownership Changed", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "actlabhrs", "field_name": "actlabhrs", "description": "Labor Hours Per Associate", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "target_complete_date", "field_name": "targcompdate", "description": "Target Complete Date", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "targstartdate", "field_name": "targstartdate", "description": "Target Start Date", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "reported_by", "field_name": "reportedby", "description": "Who Reported the Work Order", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "report_date", "field_name": "reportdate", "description": "When the Work Order Was Reported", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "actstart", "field_name": "actstart", "description": "When the Labor Was Started", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "actfinish", "field_name": "actfinish", "description": "When Labor Was Finished", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "orgid", "field_name": "orgid", "description": "Organization of Work Order", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "site_id", "field_name": "siteid", "description": "Site of Work Order", "required": true, "optional": false, "multi_entry": true},
+            {"parameter_name": "istask", "field_name": "istask", "description": "Is Work Order a Task", "required": true, "optional": false, "multi_entry": false},
+            {"parameter_name": "woclass", "field_name": "woclass", "description": "Is a Work Order or Activity", "required": true, "optional": false, "multi_entry": false},
+            {"parameter_name": "owner", "field_name": "owner", "description": "Owner of Work Order", "required": false, "optional": true, "multi_entry": true},
+            {"parameter_name": "owner_group", "field_name": "assignedownergroup", "description": "Owner Group of Work Order", "required": false, "optional": true, "multi_entry": true},
+            {"parameter_name": "start_no_earlier", "field_name": "sneconstraint", "description": "Earliest Time a Work Order Can Be Started", "required": false, "optional": true, "multi_entry": false},
+            {"parameter_name": "finish_no_later", "field_name": "fnlconstraint", "description": "Latest a Work Order Can Be Completed Before Being Flagged Missed", "required": false, "optional": true, "multi_entry": false}
+        ];
+
+        // Enum values for dropdowns
+        const STATUS_ENUM = ["APPR","CAN","CLOSE","COMP","CORRECTED","CORRTD","FLAGGED","MISSED","PENDPROD","PENDQA","PENRVW","REVWD","INPRG","WAPPR"];
+        const WORKTYPE_ENUM = ["CA","CAL","CM","CO","DOCRV","ECO","NMC","PM","RM","RQL","SAMPM","SMD","VAL"];
+        const OWNERGROUP_ENUM = ["FWNAE","FWNAST","FWNAST1","FWNCAD","FWNCCM","FWNCI","FWNCS","FWNCSM","FWNCSR","FWNCSS","FWNDCQ","FWNEN2","FWNFMOP","FWNHR","FWNHSE","FWNITOP","FWNLC1","FWNLCP1","FWNLCP2","FWNLCP3","FWNLCP4","FWNMC1","FWNMCS","FWNMDC","FWNMET","FWNMICR1","FWNMICR2","FWNMNTSCH","FWNMOS","FWNPA1","FWNPE","FWNPS","FWNPSC","FWNPSM","FWNPSP","FWNPSP1","FWNPSP2","FWNPSP3","FWNPSP4","FWNPSP5","FWNPSP6","FWNPSP7","FWNQACA","FWNQACL","FWNQACP","FWNQALO","FWNQAMI","FWNQAOP","FWNQAOP1","FWNQAW","FWNQCAST","FWNQOI","FWNRECMGT","FWNRXM","FWNSQA","FWNVAL","FWNWSM"];
+
+        function renderFields() {
+            const requiredDiv = document.getElementById('requiredFields');
+            const optionalDiv = document.getElementById('optionalFields');
+            const multiEntryDiv = document.getElementById('multiEntryFields');
+            requiredDiv.innerHTML = '';
+            optionalDiv.innerHTML = '';
+            multiEntryDiv.innerHTML = '';
+            WORK_ORDER_FIELDS.forEach(field => {
+                if (field.parameter_name === 'woclass' || field.parameter_name === 'istask') return; // hide fixed fields
+                const label = document.createElement('label');
+                label.className = 'field' + (field.required ? ' required' : '');
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.name = field.parameter_name;
+                input.value = field.parameter_name;
+                if (field.required) {
+                    input.checked = true;
+                    input.disabled = true;
+                }
+                label.appendChild(input);
+                label.appendChild(document.createTextNode(` ${field.description} (${field.field_name})`));
+                if (field.required) {
+                    requiredDiv.appendChild(label);
+                } else if (field.multi_entry) {
+                    multiEntryDiv.appendChild(label);
+                } else {
+                    optionalDiv.appendChild(label);
+                }
+            });
+        }
+        renderFields();
+
+        // Dynamically show filter controls for selected fields
+        // Store filter values globally
+        let filterValues = {};
+        function renderFilters() {
+            const selected = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.name);
+            const filterForm = document.getElementById('filterForm');
+            filterForm.innerHTML = '';
+            let hasFilters = false;
+            selected.forEach(field => {
+                let control;
+                if (field === 'status') {
+                    control = document.createElement('select');
+                    control.name = 'status';
+                    control.multiple = true;
+                    STATUS_ENUM.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt;
+                        option.textContent = opt;
+                        if (filterValues['status'] && filterValues['status'].includes(opt)) option.selected = true;
+                        control.appendChild(option);
+                    });
+                } else if (field === 'work_order_type' || field === 'worktype') {
+                    control = document.createElement('select');
+                    control.name = 'worktype';
+                    control.multiple = true;
+                    WORKTYPE_ENUM.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt;
+                        option.textContent = opt;
+                        if (filterValues['worktype'] && filterValues['worktype'].includes(opt)) option.selected = true;
+                        control.appendChild(option);
+                    });
+                } else if (field === 'owner_group' || field === 'assignedownergroup') {
+                    control = document.createElement('select');
+                    control.name = 'assignedownergroup';
+                    control.multiple = true;
+                    OWNERGROUP_ENUM.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt;
+                        option.textContent = opt;
+                        if (filterValues['assignedownergroup'] && filterValues['assignedownergroup'].includes(opt)) option.selected = true;
+                        control.appendChild(option);
+                    });
+                } else if (field === 'work_order_num' || field === 'job_plan_num' || field === 'asset_number' || field === 'location' || field === 'owner') {
+                    control = document.createElement('textarea');
+                    control.name = field;
+                    control.placeholder = 'Enter values (comma or newline separated)';
+                    control.value = filterValues[field] ? filterValues[field].join('\n') : '';
+                } else if (field.endsWith('date') || field === 'actstart' || field === 'actfinish' || field === 'target_complete_date' || field === 'targstartdate' || field === 'report_date' || field === 'changedate' || field === 'start_no_earlier' || field === 'finish_no_later') {
+                    control = document.createElement('input');
+                    control.type = 'date';
+                    control.name = field;
+                    control.value = filterValues[field] || '';
+                } else {
+                    // fallback to text input
+                    control = document.createElement('input');
+                    control.type = 'text';
+                    control.name = field;
+                    control.value = filterValues[field] || '';
+                }
+                if (control) {
+                    control.addEventListener('change', function(e) {
+                        if (control.type === 'select-multiple') {
+                            filterValues[control.name] = Array.from(control.selectedOptions).map(opt => opt.value);
+                        } else if (control.tagName === 'SELECT') {
+                            filterValues[control.name] = control.value ? [control.value] : [];
+                        } else if (control.type === 'textarea') {
+                            filterValues[control.name] = control.value.split(/[\,\n]+/).map(v => v.trim()).filter(v => v);
+                        } else if (control.type === 'date') {
+                            filterValues[control.name] = control.value;
+                        } else {
+                            filterValues[control.name] = control.value;
+                        }
+                        updateFilterSummary();
+                    });
+                    // For textarea, also update on input
+                    if (control.type === 'textarea') {
+                        control.addEventListener('input', function(e) {
+                            filterValues[control.name] = control.value.split(/[\,\n]+/).map(v => v.trim()).filter(v => v);
+                            updateFilterSummary();
+                        });
+                    }
+                    const label = document.createElement('label');
+                    label.textContent = `Filter for ${field}: `;
+                    label.appendChild(control);
+                    filterForm.appendChild(label);
+                    filterForm.appendChild(document.createElement('br'));
+                    hasFilters = true;
+                }
+            });
+            document.getElementById('filterGroup').style.display = hasFilters ? '' : 'none';
+            updateFilterSummary();
+        }
+
+        function updateFilterSummary() {
+            const summaryDiv = document.getElementById('filterSummary');
+            let html = '<b>Current Filter Values:</b><ul>';
+            Object.entries(filterValues).forEach(([key, val]) => {
+                if (Array.isArray(val)) {
+                    html += `<li>${key}: ${val.join(', ')}</li>`;
+                } else {
+                    html += `<li>${key}: ${val}</li>`;
+                }
+            });
+            html += '</ul>';
+            summaryDiv.innerHTML = html;
+        }
+
+        document.getElementById('fieldForm').addEventListener('change', function(e) {
+            renderFilters();
+        });
+        renderFilters();
+
+        const downloadBtn = document.getElementById('downloadBtn');
+        downloadBtn.disabled = true;
+
+        document.getElementById('fieldForm').onsubmit = function(e) {
+            e.preventDefault();
+            const selected = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.name);
+            // Use filterValues directly
+            const filterData = {};
+            Object.entries(filterValues).forEach(([key, val]) => {
+                filterData[key] = val;
+            });
+            fetch('http://localhost:8000/reports/work_order_summary/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ parameters: { fields: selected, ...filterData } })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display selected filters
+                const resultDiv = document.getElementById('reportResult');
+                let filterHtml = document.getElementById('filterSummary').innerHTML;
+                if (!data || !data.columns || !data.rows) {
+                    resultDiv.innerHTML = filterHtml + '<div style="color:red;">No data returned.</div>';
+                    downloadBtn.disabled = true;
+                    return;
+                }
+                let html = '<table border="1" cellpadding="4" style="border-collapse:collapse;">';
+                html += '<thead><tr>' + data.columns.map(col => `<th>${col}</th>`).join('') + '</tr></thead>';
+                html += '<tbody>';
+                data.rows.forEach(row => {
+                    html += '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>';
+                });
+                html += '</tbody></table>';
+                resultDiv.innerHTML = filterHtml + html;
+                downloadBtn.disabled = false;
+            })
+            .catch(err => {
+                document.getElementById('reportResult').innerHTML = `<div style="color:red;">Error generating report: ${err}</div>`;
+                downloadBtn.disabled = true;
+            });
+        };
+
+        document.getElementById('downloadBtn').onclick = function() {
+            const selected = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.name);
+            // Collect filter values (same logic as generate report)
+            const filterForm = document.getElementById('filterForm');
+            const filterData = {};
+            Array.from(filterForm.querySelectorAll('input, select, textarea')).forEach(el => {
+                if (!el.name) return;
+                // Always send arrays for dropdowns (single or multiple)
+                if (el.type === 'select-multiple' || el.tagName === 'SELECT') {
+                    const vals = el.type === 'select-multiple'
+                        ? Array.from(el.selectedOptions).map(opt => opt.value).filter(v => v)
+                        : el.value ? [el.value] : [];
+                    if (vals.length > 0) filterData[el.name] = vals;
+                } else if (el.type === 'textarea') {
+                    filterData[el.name] = el.value.split(/[\,\n]+/).map(v => v.trim()).filter(v => v);
+                } else if (el.type === 'date') {
+                    filterData[el.name] = el.value;
+                } else {
+                    if (el.value !== '') filterData[el.name] = el.value;
+                }
+            });
+            // Send selected fields and filters to backend XLSX API
+            const formData = JSON.stringify({ parameters: { fields: selected, ...filterData } });
+            fetch('http://localhost:8000/reports/work_order_summary/run_xlsx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to download Excel');
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'work_order_report.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(err => {
+                alert('Error downloading Excel: ' + err);
+            });
+        };
+    </script>
+</body>
+</html>

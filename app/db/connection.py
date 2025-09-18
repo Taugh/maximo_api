@@ -42,7 +42,8 @@ class SQLServerConnection:
         Returns all fetched rows.
         """
         if self.cursor is None:
-            raise RuntimeError("Database cursor is not initialized. Use the context manager (with statement).")
+            raise RuntimeError("Database cursor is not initialized. Use the context " \
+            "manager (with statement).")
         try:
             if params:
                 self.cursor.execute(query, params)
