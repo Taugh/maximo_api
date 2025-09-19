@@ -14,6 +14,8 @@
 - [x] Categorize fields using Excel mapping: required, optional, multi-entry
 - [x] Replace `.dict()` with `.model_dump()` for Pydantic v2 compatibility
 - [x] Set sensible defaults for required fields where applicable
+- [x] Frontend filter controls retain and display selected values
+- [x] Live filter summary for user clarity
 
 ## 🔌 Endpoint Implementation
 - [x] Create `POST /workorder` endpoint
@@ -44,6 +46,7 @@
 - [ ] Validate edge cases and error handling (422, missing fields)
 
 ## 📚 Documentation & Governance
-- [ ] Document endpoints, models, and query logic
-- [ ] Include versioning and change logs
-- [ ] Align with SQL query review standards (headers, assumptions, filters)
+- [x] Document endpoints, models, and query logic
+- [x] Update README for new frontend features
+- [x] Include versioning and change logs
+- [x] Align with SQL query review standards (headers, assumptions, filters)
