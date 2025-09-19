@@ -1,4 +1,6 @@
-```
+# Project Directory Tree
+
+```text
 maximo_api_project/
 ├── .env
 ├── .git
